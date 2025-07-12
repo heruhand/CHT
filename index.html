@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>WEA Chat Web</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; }
+        #chat-container { max-width: 500px; margin: 40px auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #ccc; padding: 20px; }
+        #messages { height: 350px; overflow-y: auto; border: 1px solid #eee; padding: 10px; margin-bottom: 15px; background: #fafafa; }
+        .msg { margin: 8px 0; }
+        .msg.me { text-align: right; }
+        .msg img { max-width: 180px; border-radius: 6px; }
+        #input-area { display: flex; gap: 8px; }
+        #input-area input[type="text"] { flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
+        #input-area input[type="file"] { display: none; }
+        #input-area label { background: #007bff; color: #fff; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
+        #input-area button { background: #28a745; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <h2>WEA Chat Web</h2>
+        <div id="messages"></div>
+        <form id="input-area">
+            <input type="text" id="msg-input" placeholder="Ketik pesan..." autocomplete="off" />
+            <input type="file" id="img-input" accept="image/*" />
+            <label for="img-input">📷</label>
+            <button type="submit">Kirim</button>
+        </form>
+    </div>
+    <script>
+        // Otomatis tentukan user dari link: ?user=aku atau ?user=kamu
+        const params = new URLSearchParams(window.location.search);
+        let user = params.get('user');
+        if (user !== 'aku' && user !== 'kamu') {
+            user = 'aku'; // default jika tidak ada parameter
+            window.location.search = '?user=' + user;
+        }
+        // Lawan bicara otomatis
+        const otherUser = user === 'aku' ? 'kamu' : 'aku';
+
+        const messagesDiv = document.getElementById('messages');
+        const msgInput = document.getElementById('msg-input');
+        const imgInput = document.getElementById('img-input');
+        const form = document.getElementById('input-area');
+        const STORAGE_KEY = 'wea_chat_messages';
+
+        function loadMessages() {
+            const msgs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            messagesDiv.innerHTML = '';
+            msgs.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'msg ' + (m.user === user ? 'me' : '');
+                if (m.text) div.textContent = (m.user === user ? 'Aku: ' : 'Kamu: ') + m.text;
+                if (m.img) {
+                    div.innerHTML = (m.user === user ? 'Aku: ' : 'Kamu: ') + `<br><img src="${m.img}" alt="gambar" />`;
+                }
+                messagesDiv.appendChild(div);
+            });
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function saveMessage(msg) {
+            const msgs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            msgs.push(msg);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs));
+            loadMessages();
+        }
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const text = msgInput.value.trim();
+            if (text) {
+                saveMessage({ user, text, time: Date.now() });
+                msgInput.value = '';
+            }
+        });
+
+        imgInput.addEventListener('change', function() {
+            const file = imgInput.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    saveMessage({ user, img: e.target.result, time: Date.now() });
+                };
+                reader.readAsDataURL(file);
+            }
+            imgInput.value = '';
+        });
+
+        // Auto-refresh every 2 seconds for 2-way chat
+        setInterval(loadMessages, 2000);
+        loadMessages();
+    </script>
+</body>
+</html>
